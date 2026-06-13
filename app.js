@@ -35,10 +35,13 @@ async function fetchCSV(url) {
 }
 
 function tableHTML(rows) {
+function tableHTML(rows) {
   return `
     <table>
-      ${rows.map(r => `
-        <tr>${r.map(c => `<td>${c || ""}</td>`).join("")}</tr>
+      ${rows.map((r, i) => `
+        <tr class="${i === 0 ? 'header-row' : ''}">
+          ${r.map(c => `<td>${c || ""}</td>`).join("")}
+        </tr>
       `).join("")}
     </table>
   `;
