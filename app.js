@@ -6,23 +6,28 @@ const URLS = {
   scoring: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Scoring`,
 };
 
-// safer CSV parser
+// ------------------------------
+// SAFE CSV PARSER
+// ------------------------------
 function parseCSV(text) {
   const lines = text.trim().split("\n");
+
   return lines.map(line => {
     const result = [];
     let current = "";
     let inQuotes = false;
 
     for (let char of line) {
-      if (char === '"') inQuotes = !inQuotes;
-      else if (char === "," && !inQuotes) {
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
         result.push(current.trim());
         current = "";
       } else {
         current += char;
       }
     }
+
     result.push(current.trim());
     return result;
   });
@@ -34,57 +39,89 @@ async function fetchCSV(url) {
   return parseCSV(text);
 }
 
-function tableHTML(rows) {
-  return `
-    <table>
-      ${rows.map((r, i) => `
-        <tr class="${i === 0 ? 'header-row' : ''}">
-          ${r.map(c => `<td>${c || ""}</td>`).join("")}
-        </tr>
-      `).join("")}
-    </table>
-  `;
-}
-
+// ------------------------------
+// SCORING MAP
+// ------------------------------
 function buildScoringMap(scoringRows) {
   const map = {};
+
   for (let i = 1; i < scoringRows.length; i++) {
     const [stage, points] = scoringRows[i];
-    map[stage] = Number(points);
+    if (!stage) continue;
+    map[stage] = Number(points) || 0;
   }
+
   return map;
 }
 
+// ------------------------------
+// LEADERBOARD CALCULATION
+// ------------------------------
 function calculateLeaderboard(teams, scoringMap) {
-  const teamData = teams.slice(1);
+  const rows = teams.slice(1);
 
-  const playerScores = {};
+  const players = {};
 
-  for (const row of teamData) {
+  for (const row of rows) {
     const team = row[0];
     const owner = row[1];
     const stage = row[2];
 
-    if (!owner) continue;
+    if (!team || !owner) continue;
 
-    const points = scoringMap[stage] || 0;
+    const points = scoringMap[stage] ?? 0;
 
-    if (!playerScores[owner]) {
-      playerScores[owner] = {
+    if (!players[owner]) {
+      players[owner] = {
         player: owner,
         points: 0,
         teams: []
       };
     }
 
-    playerScores[owner].points += points;
-    playerScores[owner].teams.push(`${team} (${stage})`);
+    players[owner].points += points;
+    players[owner].teams.push(`${team} (${stage || "Unknown"})`);
   }
 
-  return Object.values(playerScores)
-    .sort((a, b) => b.points - a.points);
+  return Object.values(players).sort((a, b) => b.points - a.points);
 }
 
+// ------------------------------
+// CARD RENDERING (ESPN STYLE)
+// ------------------------------
+function renderLeaderboardCards(leaderboard) {
+  if (!leaderboard.length) {
+    return `<p style="opacity:0.7">No data available</p>`;
+  }
+
+  const maxPoints = Math.max(...leaderboard.map(p => p.points), 1);
+
+  return leaderboard.map((p, i) => {
+    const rank = i + 1;
+
+    let statusClass = "red";
+    if (rank === 1) statusClass = "gold";
+    else if (p.points >= maxPoints * 0.6) statusClass = "green";
+
+    return `
+      <div class="player-card ${statusClass}">
+        <div class="card-top">
+          <div class="rank">#${rank}</div>
+          <div class="name">${p.player}</div>
+          <div class="points">${p.points} pts</div>
+        </div>
+
+        <div class="teams">
+          ${p.teams.map(t => `<span class="team-chip">${t}</span>`).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ------------------------------
+// MAIN LOAD FUNCTION
+// ------------------------------
 async function loadData() {
   try {
     const [teams, players, scoring] = await Promise.all([
@@ -96,39 +133,22 @@ async function loadData() {
     const scoringMap = buildScoringMap(scoring);
     const leaderboard = calculateLeaderboard(teams, scoringMap);
 
-    // Leaderboard UI (better format)
-    const leaderboardRows = [
-  ["#", "Player", "Points", "Teams"],
-  ...leaderboard.map((p, i) => {
-    const rank = i + 1;
-
-    let rowClass = "";
-    if (rank === 1) rowClass = "gold";
-    else if (rank === 2) rowClass = "silver";
-    else if (rank === 3) rowClass = "bronze";
-
-    return [
-      rank,
-      p.player,
-      `<span class="badge">${p.points} pts</span>`,
-      `<div class="team-list">${p.teams.join("<br>")}</div>`
-    ];
-  })
-];
-
-    document.getElementById("teams").innerHTML = tableHTML(teams);
-    document.getElementById("scoring").innerHTML = tableHTML(scoring);
-    document.getElementById("leaderboard").innerHTML = tableHTML(leaderboardRows);
+    document.getElementById("leaderboard").innerHTML =
+      `<div class="card-grid">${renderLeaderboardCards(leaderboard)}</div>`;
 
     document.getElementById("lastUpdated").innerText =
       "Last updated: " + new Date().toLocaleString();
 
   } catch (err) {
     console.error(err);
+
     document.getElementById("leaderboard").innerHTML =
-      "<p>⚠️ Error loading data — check Google Sheet sharing settings</p>";
+      `<p style="color:#ef4444">⚠️ Failed to load data. Check Google Sheet sharing permissions.</p>`;
   }
 }
 
+// ------------------------------
+// INIT
+// ------------------------------
 loadData();
 setInterval(loadData, 60000);
