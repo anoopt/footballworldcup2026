@@ -24,6 +24,15 @@ main {
   border: 1px solid #1f2a44;
 }
 
+.card h2 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #4f46e5; /* Nice accent color for section headers */
+  border-bottom: 1px solid #1f2a44;
+  padding-bottom: 8px;
+}
+
+
 .team {
   font-size: 12px;
   opacity: 0.8;
