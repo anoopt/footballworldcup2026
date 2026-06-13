@@ -6,7 +6,6 @@ const URLS = {
   scoring: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Scoring`,
 };
 
-// ---------- SIMPLE CSV PARSER ----------
 function parseCSV(text) {
   return text
     .trim()
@@ -14,14 +13,12 @@ function parseCSV(text) {
     .map(row => row.split(",").map(cell => cell.replace(/"/g, "").trim()));
 }
 
-// ---------- FETCH ----------
 async function fetchCSV(url) {
   const res = await fetch(url);
   const text = await res.text();
   return parseCSV(text);
 }
 
-// ---------- SCORING ----------
 function buildScoringMap(scoring) {
   const map = {};
   for (let i = 1; i < scoring.length; i++) {
@@ -31,23 +28,32 @@ function buildScoringMap(scoring) {
   return map;
 }
 
-// ---------- LEADERBOARD ----------
+// Helper to determine team highlights dynamically
+function getTeamStatusClass(stage) {
+  if (!stage || stage === "Group") return "badge-advancing"; 
+  if (stage === "Winner") return "badge-winner";
+  
+  const eliminatedStages = ["Round32", "Round16", "Quarter", "Semi", "RunnerUp"];
+  if (eliminatedStages.includes(stage)) {
+    return "badge-eliminated";
+  }
+  return "badge-advancing";
+}
+
 function calculateLeaderboard(playerRows, teamRows, scoringMap) {
   const players = {};
 
-  // 1. Initialize all players from your Players tab so they show up instantly
   for (let i = 1; i < playerRows.length; i++) {
     const playerName = playerRows[i][0];
     if (playerName && playerName.trim() !== "") {
       players[playerName] = {
         player: playerName,
         points: 0,
-        teams: []
+        teams: [] 
       };
     }
   }
 
-  // 2. Add team data if owners are assigned
   for (let i = 1; i < teamRows.length; i++) {
     const row = teamRows[i];
     if (!row || row.length < 2) continue;
@@ -59,30 +65,49 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
     if (owner && players[owner]) {
       const points = scoringMap[stage] || 0;
       players[owner].points += points;
-      if (team) players[owner].teams.push(team);
+      if (team) {
+        players[owner].teams.push({ name: team, stage: stage });
+      }
     }
   }
 
   return Object.values(players).sort((a, b) => b.points - a.points);
 }
 
-// ---------- RENDER ----------
 function renderLeaderboard(leaderboard) {
   if (leaderboard.length === 0) {
-    return `<p style="color: #8a99ad; font-style: italic; margin: 10px 0;">No players found in database.</p>`;
+    return `<p style="color: #8a99ad; font-style: italic;">No players found.</p>`;
   }
 
-  return leaderboard.map((p, i) => `
-    <div style="padding: 12px 0; border-bottom: 1px solid #1f2a44;">
-      <b style="font-size: 16px;">#${i + 1} ${p.player}</b> — ${p.points} pts
-      <div class="team" style="color: #8a99ad; margin-top: 4px; font-size: 13px;">
-        ${p.teams.length > 0 ? p.teams.join(", ") : "<i>🎟️ No teams drawn yet (Draft Pending)</i>"}
+  let html = '<div class="leaderboard-grid">';
+  
+  leaderboard.forEach((p, i) => {
+    // Get the first character of the name for the initial avatar badge
+    const initial = p.player.trim().charAt(0).toUpperCase();
+
+    html += `
+      <div class="player-tile">
+        <div class="avatar-initial">${initial}</div>
+        <div class="player-info">
+          <div class="player-header">
+            <span class="player-name">${i + 1}. ${p.player}</span>
+            <span class="player-pts">${p.points} pts</span>
+          </div>
+          <div class="teams-container">
+            ${p.teams.length > 0 ? 
+              p.teams.map(t => `<span class="badge ${getTeamStatusClass(t.stage)}">${t.name} (${t.stage})</span>`).join('') 
+              : `<span class="badge badge-pending">🎟️ Draft Pending</span>`
+            }
+          </div>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `;
+  });
+
+  html += '</div>';
+  return html;
 }
 
-// ---------- LOAD ----------
 async function loadData() {
   try {
     const [teams, players, scoring] = await Promise.all([
@@ -95,19 +120,16 @@ async function loadData() {
     const leaderboard = calculateLeaderboard(players, teams, scoringMap);
 
     document.getElementById("leaderboard").innerHTML = renderLeaderboard(leaderboard);
-
-    document.getElementById("lastUpdated").innerText =
-      "Last updated: " + new Date().toLocaleString();
+    
+    // Forces the date output to strict UK notation
+    document.getElementById("lastUpdated").innerText = 
+      "Last updated: " + new Date().toLocaleString('en-GB');
 
   } catch (err) {
     console.error(err);
-    document.getElementById("leaderboard").innerHTML =
-      "<p style='color:red'>Failed to load data</p>";
+    document.getElementById("leaderboard").innerHTML = "<p style='color:red'>Failed to load data</p>";
   }
 }
 
-// Initial pull on load
 loadData();
-
-// Re-check for sheet entries automatically every 60 seconds
 setInterval(loadData, 60000);
