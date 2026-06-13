@@ -35,10 +35,10 @@ function buildScoringMap(scoring) {
 function calculateLeaderboard(playerRows, teamRows, scoringMap) {
   const players = {};
 
-  // 1. Initialize all players from the Players sheet so they show up immediately
+  // 1. Initialize all players from your Players tab so they show up instantly
   for (let i = 1; i < playerRows.length; i++) {
     const playerName = playerRows[i][0];
-    if (playerName) {
+    if (playerName && playerName.trim() !== "") {
       players[playerName] = {
         player: playerName,
         points: 0,
@@ -47,16 +47,19 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
     }
   }
 
-  // 2. Add team points if owners are assigned
+  // 2. Add team data if owners are assigned
   for (let i = 1; i < teamRows.length; i++) {
-    const [team, owner, stage] = teamRows[i];
-    if (!team) continue;
+    const row = teamRows[i];
+    if (!row || row.length < 2) continue;
 
-    // If an owner is assigned and exists in our player map, calculate points
+    const team = row[0];
+    const owner = row[1];
+    const stage = row[2] || "Group";
+
     if (owner && players[owner]) {
       const points = scoringMap[stage] || 0;
       players[owner].points += points;
-      players[owner].teams.push(team);
+      if (team) players[owner].teams.push(team);
     }
   }
 
@@ -65,11 +68,15 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
 
 // ---------- RENDER ----------
 function renderLeaderboard(leaderboard) {
+  if (leaderboard.length === 0) {
+    return `<p style="color: #8a99ad; font-style: italic; margin: 10px 0;">No players found in database.</p>`;
+  }
+
   return leaderboard.map((p, i) => `
-    <div style="padding: 10px 0; border-bottom: 1px solid #1f2a44; last-child { border: none; }">
-      <b>#${i + 1} ${p.player}</b> — ${p.points} pts
-      <div class="team" style="color: #8a99ad; margin-top: 4px;">
-        ${p.teams.length > 0 ? p.teams.join(", ") : "<i>No teams assigned yet (Draft Pending)</i>"}
+    <div style="padding: 12px 0; border-bottom: 1px solid #1f2a44;">
+      <b style="font-size: 16px;">#${i + 1} ${p.player}</b> — ${p.points} pts
+      <div class="team" style="color: #8a99ad; margin-top: 4px; font-size: 13px;">
+        ${p.teams.length > 0 ? p.teams.join(", ") : "<i>🎟️ No teams drawn yet (Draft Pending)</i>"}
       </div>
     </div>
   `).join("");
@@ -99,5 +106,8 @@ async function loadData() {
   }
 }
 
+// Initial pull on load
 loadData();
+
+// Re-check for sheet entries automatically every 60 seconds
 setInterval(loadData, 60000);
