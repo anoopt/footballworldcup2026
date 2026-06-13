@@ -28,7 +28,6 @@ function buildScoringMap(scoring) {
   return map;
 }
 
-// Helper to determine team highlights dynamically
 function getTeamStatusClass(stage) {
   if (!stage || stage === "Group") return "badge-advancing"; 
   if (stage === "Winner") return "badge-winner";
@@ -82,7 +81,6 @@ function renderLeaderboard(leaderboard) {
   let html = '<div class="leaderboard-grid">';
   
   leaderboard.forEach((p, i) => {
-    // Get the first character of the name for the initial avatar badge
     const initial = p.player.trim().charAt(0).toUpperCase();
 
     html += `
@@ -108,6 +106,24 @@ function renderLeaderboard(leaderboard) {
   return html;
 }
 
+// Renders prizes using direct key injection from the sheet definitions
+function updatePrizePoolUI(playerCount, scoringMap) {
+  const entryFee = scoringMap["EntryFee"] || 0;
+  const totalPool = playerCount * entryFee;
+
+  // Fetch individual position prizes directly from the spreadsheet values
+  const winnerPrize = scoringMap["PrizeWinner"] || 0;
+  const runnerUpPrize = scoringMap["PrizeRunnerUp"] || 0;
+  const semiPrize = scoringMap["PrizeSemiFinalist"] || 0;
+  const lastPrize = scoringMap["PrizeLastPlace"] || 0;
+
+  document.getElementById("totalPrize").innerText = `£${totalPool}`;
+  document.getElementById("prizeWinner").innerText = `£${winnerPrize}`;
+  document.getElementById("prizeRunnerUp").innerText = `£${runnerUpPrize}`;
+  document.getElementById("prizeSemi").innerText = `£${semiPrize} each`;
+  document.getElementById("prizeLast").innerText = `£${lastPrize}`;
+}
+
 async function loadData() {
   try {
     const [teams, players, scoring] = await Promise.all([
@@ -121,7 +137,11 @@ async function loadData() {
 
     document.getElementById("leaderboard").innerHTML = renderLeaderboard(leaderboard);
     
-    // Forces the date output to strict UK notation
+    const activePlayerCount = leaderboard.length;
+    
+    // Pass the entire scoring map matrix over to evaluate positions dynamically
+    updatePrizePoolUI(activePlayerCount, scoringMap);
+
     document.getElementById("lastUpdated").innerText = 
       "Last updated: " + new Date().toLocaleString('en-GB');
 
@@ -133,3 +153,4 @@ async function loadData() {
 
 loadData();
 setInterval(loadData, 60000);
+    
