@@ -35,7 +35,6 @@ async function fetchCSV(url) {
 }
 
 function tableHTML(rows) {
-function tableHTML(rows) {
   return `
     <table>
       ${rows.map((r, i) => `
