@@ -7,42 +7,76 @@ const URLS = {
 };
 
 // ------------------------------
-// SAFE CSV PARSER
+// SUPER SAFE FETCH (DEBUG ENABLED)
 // ------------------------------
-function parseCSV(text) {
-  const lines = text.trim().split("\n");
+async function fetchCSV(url, label) {
+  try {
+    const res = await fetch(url);
 
-  return lines.map(line => {
-    const result = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let char of line) {
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-      } else {
-        current += char;
-      }
+    if (!res.ok) {
+      throw new Error(`${label} HTTP error: ${res.status}`);
     }
 
-    result.push(current.trim());
-    return result;
-  });
+    const text = await res.text();
+
+    if (!text || text.includes("<html")) {
+      throw new Error(`${label} returned HTML instead of CSV (sheet not public?)`);
+    }
+
+    return parseCSV(text);
+  } catch (err) {
+    console.error(`❌ ${label} failed:`, err);
+    return null;
+  }
 }
 
-async function fetchCSV(url) {
-  const res = await fetch(url);
-  const text = await res.text();
-  return parseCSV(text);
+// ------------------------------
+// ROBUST CSV PARSER
+// ------------------------------
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      row.push(cell.trim());
+      cell = "";
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (cell || row.length) {
+        row.push(cell.trim());
+        rows.push(row);
+        row = [];
+        cell = "";
+      }
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell.trim());
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 // ------------------------------
 // SCORING MAP
 // ------------------------------
 function buildScoringMap(scoringRows) {
+  if (!scoringRows) return {};
+
   const map = {};
 
   for (let i = 1; i < scoringRows.length; i++) {
@@ -55,11 +89,12 @@ function buildScoringMap(scoringRows) {
 }
 
 // ------------------------------
-// LEADERBOARD CALCULATION
+// LEADERBOARD LOGIC
 // ------------------------------
 function calculateLeaderboard(teams, scoringMap) {
-  const rows = teams.slice(1);
+  if (!teams) return [];
 
+  const rows = teams.slice(1);
   const players = {};
 
   for (const row of rows) {
@@ -87,11 +122,11 @@ function calculateLeaderboard(teams, scoringMap) {
 }
 
 // ------------------------------
-// CARD RENDERING (ESPN STYLE)
+// CARD UI
 // ------------------------------
 function renderLeaderboardCards(leaderboard) {
   if (!leaderboard.length) {
-    return `<p style="opacity:0.7">No data available</p>`;
+    return `<p style="opacity:0.7">No leaderboard data yet</p>`;
   }
 
   const maxPoints = Math.max(...leaderboard.map(p => p.points), 1);
@@ -120,35 +155,36 @@ function renderLeaderboardCards(leaderboard) {
 }
 
 // ------------------------------
-// MAIN LOAD FUNCTION
+// MAIN LOAD
 // ------------------------------
 async function loadData() {
-  try {
-    const [teams, players, scoring] = await Promise.all([
-      fetchCSV(URLS.teams),
-      fetchCSV(URLS.players),
-      fetchCSV(URLS.scoring),
-    ]);
+  const [teams, players, scoring] = await Promise.all([
+    fetchCSV(URLS.teams, "Teams"),
+    fetchCSV(URLS.players, "Players"),
+    fetchCSV(URLS.scoring, "Scoring"),
+  ]);
 
-    const scoringMap = buildScoringMap(scoring);
-    const leaderboard = calculateLeaderboard(teams, scoringMap);
+  console.log("Teams:", teams);
+  console.log("Players:", players);
+  console.log("Scoring:", scoring);
 
+  // graceful fallback UI
+  if (!teams || !scoring) {
     document.getElementById("leaderboard").innerHTML =
-      `<div class="card-grid">${renderLeaderboardCards(leaderboard)}</div>`;
-
-    document.getElementById("lastUpdated").innerText =
-      "Last updated: " + new Date().toLocaleString();
-
-  } catch (err) {
-    console.error(err);
-
-    document.getElementById("leaderboard").innerHTML =
-      `<p style="color:#ef4444">⚠️ Failed to load data. Check Google Sheet sharing permissions.</p>`;
+      `<p style="color:#ef4444">⚠️ Data failed to load. Check Google Sheet sharing (Anyone with link → Viewer)</p>`;
+    return;
   }
+
+  const scoringMap = buildScoringMap(scoring);
+  const leaderboard = calculateLeaderboard(teams, scoringMap);
+
+  document.getElementById("leaderboard").innerHTML =
+    `<div class="card-grid">${renderLeaderboardCards(leaderboard)}</div>`;
+
+  document.getElementById("lastUpdated").innerText =
+    "Last updated: " + new Date().toLocaleString();
 }
 
-// ------------------------------
-// INIT
 // ------------------------------
 loadData();
 setInterval(loadData, 60000);
