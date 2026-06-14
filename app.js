@@ -42,54 +42,66 @@ function getTeamStatusClass(stage) {
 function calculateLeaderboard(playerRows, teamRows, scoringMap) {
   const players = {};
 
-  // 1. Initialize players
+  // 1. Safely initialize players (Case-Insensitive matching keys)
   for (let i = 1; i < playerRows.length; i++) {
-    const playerName = playerRows[i][0];
-    if (playerName && playerName.trim() !== "") {
-      players[playerName] = {
-        player: playerName,
+    const row = playerRows[i];
+    if (!row || !row[0]) continue;
+    
+    const playerName = row[0].trim();
+    if (playerName !== "") {
+      players[playerName.toLowerCase()] = {
+        player: playerName, // Keeps original capitalization for UI display
         points: 0,
         teams: [] 
       };
     }
   }
 
-  // 2. Process teams and incorporate the tally system
+  // 2. Fetch tally multipliers from scoring rules
   const winValue = scoringMap["MatchWin"] || 0;
   const drawValue = scoringMap["MatchDraw"] || 0;
 
+  // 3. Process ALL teams sequentially without dropping lower rows
   for (let i = 1; i < teamRows.length; i++) {
     const row = teamRows[i];
+    
+    // Ensure the row actually has data before parsing it
     if (!row || row.length < 2) continue;
 
-    const team = row[0];
-    const owner = row[1];
-    const stage = row[2] || "Group";
+    const team = row[0] ? row[0].trim() : "";
+    const owner = row[1] ? row[1].trim() : "";
+    const stage = row[2] ? row[2].trim() : "Group";
     
-    // Safely parse out columns D (Wins) and E (Draws) if they exist
     const wins = Number(row[3]) || 0;
     const draws = Number(row[4]) || 0;
 
-    if (owner && players[owner]) {
-      // Points = (Stage milestone points) + (Wins * Win value) + (Draws * Draw value)
+    // Skip row entries that don't have a team or an owner filled out yet
+    if (!team || !owner) continue;
+
+    const ownerKey = owner.toLowerCase();
+
+    // Map team to the player if they exist in our player index
+    if (players[ownerKey]) {
       const stagePoints = scoringMap[stage] || 0;
       const matchPoints = (wins * winValue) + (draws * drawValue);
       
-      players[owner].points += stagePoints + matchPoints;
+      // Accumulate points smoothly
+      players[ownerKey].points += stagePoints + matchPoints;
       
-      if (team) {
-        // Build a display string showing stats if they have any recorded games yet
-        const statsString = (wins > 0 || draws > 0) ? ` (${wins}W, ${draws}D)` : '';
-        players[owner].teams.push({ 
-          name: `${team}${statsString}`, 
-          stage: stage 
-        });
-      }
+      // Format stats notation cleanly
+      const statsString = (wins > 0 || draws > 0) ? ` (${wins}W, ${draws}D)` : '';
+      
+      players[ownerKey].teams.push({ 
+        name: `${team}${statsString}`, 
+        stage: stage 
+      });
     }
   }
 
+  // Convert map back to an array and sort descending by points
   return Object.values(players).sort((a, b) => b.points - a.points);
 }
+
 
 function renderLeaderboard(leaderboard) {
   if (leaderboard.length === 0) {
