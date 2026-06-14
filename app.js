@@ -42,6 +42,7 @@ function getTeamStatusClass(stage) {
 function calculateLeaderboard(playerRows, teamRows, scoringMap) {
   const players = {};
 
+  // 1. Initialize players
   for (let i = 1; i < playerRows.length; i++) {
     const playerName = playerRows[i][0];
     if (playerName && playerName.trim() !== "") {
@@ -53,6 +54,10 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
     }
   }
 
+  // 2. Process teams and incorporate the tally system
+  const winValue = scoringMap["MatchWin"] || 0;
+  const drawValue = scoringMap["MatchDraw"] || 0;
+
   for (let i = 1; i < teamRows.length; i++) {
     const row = teamRows[i];
     if (!row || row.length < 2) continue;
@@ -60,12 +65,25 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
     const team = row[0];
     const owner = row[1];
     const stage = row[2] || "Group";
+    
+    // Safely parse out columns D (Wins) and E (Draws) if they exist
+    const wins = Number(row[3]) || 0;
+    const draws = Number(row[4]) || 0;
 
     if (owner && players[owner]) {
-      const points = scoringMap[stage] || 0;
-      players[owner].points += points;
+      // Points = (Stage milestone points) + (Wins * Win value) + (Draws * Draw value)
+      const stagePoints = scoringMap[stage] || 0;
+      const matchPoints = (wins * winValue) + (draws * drawValue);
+      
+      players[owner].points += stagePoints + matchPoints;
+      
       if (team) {
-        players[owner].teams.push({ name: team, stage: stage });
+        // Build a display string showing stats if they have any recorded games yet
+        const statsString = (wins > 0 || draws > 0) ? ` (${wins}W, ${draws}D)` : '';
+        players[owner].teams.push({ 
+          name: `${team}${statsString}`, 
+          stage: stage 
+        });
       }
     }
   }
@@ -93,7 +111,7 @@ function renderLeaderboard(leaderboard) {
           </div>
           <div class="teams-container">
             ${p.teams.length > 0 ? 
-              p.teams.map(t => `<span class="badge ${getTeamStatusClass(t.stage)}">${t.name} (${t.stage})</span>`).join('') 
+              p.teams.map(t => `<span class="badge ${getTeamStatusClass(t.stage)}">${t.name}</span>`).join('') 
               : `<span class="badge badge-pending">🎟️ Draft Pending</span>`
             }
           </div>
@@ -106,12 +124,10 @@ function renderLeaderboard(leaderboard) {
   return html;
 }
 
-// Renders prizes using direct key injection from the sheet definitions
 function updatePrizePoolUI(playerCount, scoringMap) {
   const entryFee = scoringMap["EntryFee"] || 0;
   const totalPool = playerCount * entryFee;
 
-  // Fetch individual position prizes directly from the spreadsheet values
   const winnerPrize = scoringMap["PrizeWinner"] || 0;
   const runnerUpPrize = scoringMap["PrizeRunnerUp"] || 0;
   const semiPrize = scoringMap["PrizeSemiFinalist"] || 0;
@@ -138,8 +154,6 @@ async function loadData() {
     document.getElementById("leaderboard").innerHTML = renderLeaderboard(leaderboard);
     
     const activePlayerCount = leaderboard.length;
-    
-    // Pass the entire scoring map matrix over to evaluate positions dynamically
     updatePrizePoolUI(activePlayerCount, scoringMap);
 
     document.getElementById("lastUpdated").innerText = 
@@ -153,4 +167,3 @@ async function loadData() {
 
 loadData();
 setInterval(loadData, 60000);
-    
