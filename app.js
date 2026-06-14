@@ -111,7 +111,7 @@ function renderLeaderboard(leaderboard) {
         <div class="avatar-initial">${initial}</div>
         <div class="player-info">
           <div class="player-header">
-            <span class="player-name">${i + 1}. ${p.player}</span>
+            <span class="player-name">${p.player}</span>
             <span class="player-pts">${p.points} pts</span>
           </div>
           <div class="teams-container">
