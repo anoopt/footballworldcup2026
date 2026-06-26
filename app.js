@@ -63,6 +63,8 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
     const stage = row[2] || "Group";
     const wins = Number(row[3]) || 0;
     const draws = Number(row[4]) || 0;
+    // 🛑 Grab Losses from column index 5 (6th column in the Google Sheet row)
+    const losses = Number(row[5]) || 0;
 
     const ownerKey = owner.toLowerCase();
     if (players[ownerKey]) {
@@ -70,8 +72,8 @@ function calculateLeaderboard(playerRows, teamRows, scoringMap) {
       const stagePoints = scoringMap[stage] || 0;
       players[ownerKey].points += matchPoints + stagePoints;
 
-      // Collect raw information to pass down safely to renderer
-      players[ownerKey].teams.push({ name: team, wins, draws });
+      // Pass down losses alongside wins and draws
+      players[ownerKey].teams.push({ name: team, wins, draws, losses });
     }
   }
   return Object.values(players).sort((a, b) => b.points - a.points);
@@ -88,13 +90,19 @@ function renderLeaderboard(leaderboard) {
         <div class="player-info">
           <div class="player-header">
             <span class="player-name">${p.player}</span>
-            <span class="player-pts">${p.points} pts</span>
+            <div style="text-align: right;">
+              <span class="player-pts">${p.points} pts</span>
+            </div>
           </div>
           <div class="teams-container">
             ${p.teams.map(t => {
               const code = FLAG_MAP[t.name.toLowerCase()] || "un";
               const flagUrl = `https://flagcdn.com/w40/${code}.png`;
-              const stats = (t.wins > 0 || t.draws > 0) ? ` (${t.wins}W, ${t.draws}D)` : '';
+              
+              // 📊 Update the stats string to include L (Losses)
+              const hasStats = t.wins > 0 || t.draws > 0 || t.losses > 0;
+              const stats = hasStats ? ` (${t.wins}W, ${t.draws}D, ${t.losses}L)` : '';
+              
               return `
                 <span class="badge">
                   <img class="flag-icon" src="${flagUrl}" alt="${t.name}">
@@ -110,6 +118,7 @@ function renderLeaderboard(leaderboard) {
   html += '</div>';
   return html;
 }
+
 
 function updatePrizePoolUI(playerCount, scoringMap) {
   const total = playerCount * (scoringMap["EntryFee"] || 0);
