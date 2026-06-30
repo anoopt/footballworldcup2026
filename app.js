@@ -280,8 +280,17 @@ async function loadData() {
     const scoringMap = buildScoringMap(scoring);
     const leaderboard = calculateLeaderboard(players, teams, scoringMap);
 
+    // 🔖 Remember which team breakdowns are expanded so the refresh doesn't collapse them
+    const openDetailIds = Array.from(
+      document.querySelectorAll('.badge-details.open')
+    ).map(el => el.id);
+
     document.getElementById("leaderboard").innerHTML = renderLeaderboard(leaderboard);
     document.getElementById("scoring").innerHTML = renderScoringTable(scoringMap);
+
+    // ♻️ Restore the previously expanded breakdowns after the re-render
+    openDetailIds.forEach(id => document.getElementById(id)?.classList.add('open'));
+
     updatePrizePoolUI(leaderboard.length, scoringMap);
     //document.getElementById("lastUpdated").innerText = "Last updated: " + new Date().toLocaleString('en-GB');
   } catch (err) {

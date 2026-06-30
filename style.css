@@ -37,6 +37,7 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 .tab-btn.active {
   background-color: var(--accent-blue);
@@ -47,6 +48,14 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
 }
 .tab-content.active {
   display: block;
+}
+
+/* 📱 Mobile: keep tabs on a single line */
+@media (max-width: 480px) {
+  .tab-btn {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+  }
 }
 
 /* 👥 Player Tile Improvements */
