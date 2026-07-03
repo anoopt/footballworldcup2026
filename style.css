@@ -11,9 +11,10 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: 16px; }
-.container { max-width: 500px; margin: 0 auto; }
-h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px; }
+html { overflow-x: hidden; }
+body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: clamp(8px, 4vw, 16px); overflow-x: hidden; }
+.container { max-width: 500px; margin: 0 auto; width: 100%; }
+h1 { text-align: center; font-size: clamp(1.15rem, 5.5vw, 1.5rem); margin-top: 10px; margin-bottom: 4px; }
 #lastUpdated { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; }
 
 /* 🎛️ Navigation Tabs Styling */
@@ -27,17 +28,20 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
 }
 .tab-btn {
   flex: 1;
+  min-width: 0; /* Allow buttons to shrink below their text width instead of overflowing */
   background: transparent;
   border: none;
   color: var(--text-muted);
   padding: 10px;
   font-family: inherit;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: clamp(0.68rem, 3.6vw, 0.95rem);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tab-btn.active {
   background-color: var(--accent-blue);
@@ -53,9 +57,15 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
 /* 📱 Mobile: keep tabs on a single line */
 @media (max-width: 480px) {
   .tab-btn {
-    padding: 8px 6px;
-    font-size: 0.8rem;
+    padding: 8px 4px;
   }
+}
+
+/* 📱 Extra-small phones: tighten everything a bit more */
+@media (max-width: 340px) {
+  .avatar-initial, .avatar-photo { width: 36px; height: 36px; }
+  .player-teams-row { gap: 8px; }
+  .badge .stage-pill { width: clamp(4rem, 26vw, 6.5rem); }
 }
 
 /* 👥 Player Tile Improvements */
@@ -63,19 +73,22 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
   background-color: var(--card-bg);
   border: 1px solid #334155;
   border-radius: 12px;
-  padding: 14px;
+  padding: clamp(10px, 3.5vw, 14px);
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 12px;
+  max-width: 100%;
+  overflow: hidden;
 }
-.player-header { display: flex; justify-content: space-between; }
-.player-name { font-weight: 600; }
-.player-pts { font-weight: 700; color: var(--accent-blue); }
+.player-header { display: flex; justify-content: space-between; gap: 8px; }
+.player-name { font-weight: 600; overflow-wrap: anywhere; }
+.player-pts { font-weight: 700; color: var(--accent-blue); white-space: nowrap; }
 .player-teams-row {
   display: flex;
   align-items: flex-start; /* Keeps avatar fixed at top so it doesn't move when details expand */
-  gap: 14px;
+  gap: clamp(8px, 3vw, 14px);
+  min-width: 0; /* Allow children to shrink below their content size instead of overflowing */
 }
 .avatar-initial {
   background-color: var(--accent-blue);
@@ -103,20 +116,23 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
 .teams-container {
   display: flex;
   flex-direction: column; /* Forces them onto separate rows */
-  gap: 8px; 
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .badge {
   display: flex;
   align-items: center;
-  gap: 8px; /* Gap between flag image and text */
-  padding: 6px 12px;
+  gap: clamp(4px, 1.8vw, 8px); /* Gap between flag image and text */
+  padding: 6px clamp(6px, 2.5vw, 12px);
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: clamp(0.68rem, 3vw, 0.8rem);
   font-weight: 600;
   text-transform: uppercase;
   background-color: var(--badge-green-bg);
   color: var(--badge-green-text);
   width: 100%; /* Fills team-item so it matches the details panel width */
+  min-width: 0;
   box-sizing: border-box;
   cursor: pointer; /* Indicates the badge is clickable */
   user-select: none;
@@ -127,8 +143,9 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
   display: flex;
   flex-direction: column;
   align-items: stretch;   /* Badge + details share the same width */
-  width: max-content;     /* …sized to whichever of the two is wider */
+  width: 100%;            /* Fill the available row width instead of forcing content width */
   max-width: 100%;
+  min-width: 0;
   gap: 4px;
 }
 .expand-caret {
@@ -195,13 +212,13 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
 }
 /* 🎯 One equal-width pill so every badge lines up */
 .badge .stage-pill {
-  flex: 0 0 8rem; /* Fixed width – never grows or shrinks */
-  width: 8rem;
+  flex: 0 0 auto; /* Shrinks gracefully instead of forcing overflow */
+  width: clamp(4.6rem, 24vw, 8rem);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: clamp(0.6rem, 2.6vw, 0.7rem);
   font-weight: 700;
   background-color: #1e40af;
   color: #dbeafe;
@@ -215,9 +232,13 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
   background-color: #991b1b;
   color: #fff;
 }
-/* 🏷️ Keep team names a consistent width so the pills align */
+/* 🏷️ Keep team names a consistent width so the pills align, but let them shrink on small screens */
 .badge .team-label {
-  min-width: 5.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 🎌 Flag Styles */
@@ -228,6 +249,10 @@ h1 { text-align: center; font-size: 1.5rem; margin-top: 10px; margin-bottom: 4px
   border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
   vertical-align: middle;
+  flex-shrink: 0;
+}
+.expand-caret {
+  flex-shrink: 0;
 }
 
 /* 💰 Clean Prize Tab UI */
