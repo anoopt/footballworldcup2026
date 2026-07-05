@@ -7,7 +7,7 @@ const URLS = {
   scoring: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Scoring${cacheBuster}`,
 };
 
-// Map team names to ISO two-letter country codes for flagcdn urls
+// Map team names to ISO two-letter country codes for flagcdn urls.
 const FLAG_MAP = {
   "england": "gb-eng", "france": "fr", "argentina": "ar", "spain": "es", 
   "brazil": "br", "portugal": "pt", "germany": "de", "netherlands": "nl", 
