@@ -21,6 +21,7 @@ const STAGE_LABELS = {
   "Round16": "Round of 16",
   "Quarter": "Quarter-final",
   "Semi": "Semi-final",
+  "Final": "Final",
   "RunnerUp": "Runner-up",
   "Winner": "Champion 🏆"
 };
@@ -68,7 +69,7 @@ function isEliminated(value) {
 
 // 🪜 Knockout rounds in order. RunnerUp/Winner are the two possible Final outcomes
 // that sit on top of this sequence.
-const STAGE_SEQUENCE = ["Round32", "Round16", "Quarter", "Semi"];
+const STAGE_SEQUENCE = ["Round32", "Round16", "Quarter", "Semi", "Final"];
 
 // 🧮 Cumulative stage bonus: a team earns the bonus for EVERY round it has passed.
 // Returns an ordered list of { label, points } rows (Group = 0 is skipped).
